@@ -1,0 +1,40 @@
+# C++ 빌드 파일들
+*.o
+*.obj
+*.exe
+*.out
+*.app
+
+# 실행 파일들
+curl_cpp_simple
+advanced_curl_cpp
+
+# CMake 빌드 디렉토리
+build/
+CMakeFiles/
+cmake_install.cmake
+CMakeCache.txt
+Makefile
+
+# IDE 파일들
+.vscode/
+.idea/
+*.swp
+*.swo
+*~
+
+# macOS 시스템 파일들
+.DS_Store
+.DS_Store?
+._*
+.Spotlight-V100
+.Trashes
+ehthumbs.db
+Thumbs.db
+
+# 로그 파일들
+*.log
+
+# 임시 파일들
+*.tmp
+*.temp 
