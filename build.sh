@@ -49,6 +49,7 @@ show_help() {
     echo "  -s, --simple   기본 테스트만 빌드"
     echo "  -a, --advanced 고급 테스트만 빌드"
     echo "  -i, --ipv6     IPv4/IPv6 테스트만 빌드"
+    echo "  -t, --tls      TLS 테스트만 빌드"
     echo "  -r, --run      빌드 후 실행"
     echo "  -d, --debug    디버그 모드로 빌드"
     echo ""
@@ -57,6 +58,7 @@ show_help() {
     echo "  $0 -s -r        # 기본 테스트 빌드 후 실행"
     echo "  $0 -a -r        # 고급 테스트 빌드 후 실행"
     echo "  $0 -i -r        # IPv4/IPv6 테스트 빌드 후 실행"
+    echo "  $0 -t -r        # TLS 테스트 빌드 후 실행"
     echo "  $0 -c           # 정리만 수행"
 }
 
@@ -65,6 +67,7 @@ CLEAN=false
 BUILD_SIMPLE=false
 BUILD_ADVANCED=false
 BUILD_IPV6=false
+BUILD_TLS=false
 RUN_AFTER_BUILD=false
 DEBUG_MODE=false
 COMPILER="g++" # 기본값
@@ -92,6 +95,10 @@ while [[ $# -gt 0 ]]; do
             BUILD_IPV6=true
             shift
             ;;
+        -t|--tls)
+            BUILD_TLS=true
+            shift
+            ;;
         -r|--run)
             RUN_AFTER_BUILD=true
             shift
@@ -109,10 +116,11 @@ while [[ $# -gt 0 ]]; do
 done
 
 # 기본값 설정 (옵션이 없으면 모든 테스트 빌드)
-if [[ "$BUILD_SIMPLE" == false && "$BUILD_ADVANCED" == false && "$BUILD_IPV6" == false ]]; then
+if [[ "$BUILD_SIMPLE" == false && "$BUILD_ADVANCED" == false && "$BUILD_IPV6" == false && "$BUILD_TLS" == false ]]; then
     BUILD_SIMPLE=true
     BUILD_ADVANCED=true
     BUILD_IPV6=true
+    BUILD_TLS=true
 fi
 
 # 컴파일러 확인
@@ -137,7 +145,7 @@ fi
 # 정리 모드
 if [[ "$CLEAN" == true ]]; then
     print_info "이전 빌드 파일들을 정리합니다..."
-    rm -f curl_cpp_simple advanced_curl_cpp ipv4_ipv6_test
+    rm -f curl_cpp_simple advanced_curl_cpp ipv4_ipv6_test tls_client_test tls_server_test
     print_success "정리 완료"
     exit 0
 fi
@@ -205,6 +213,60 @@ if [[ "$BUILD_IPV6" == true ]]; then
     fi
 fi
 
+# TLS 테스트 빌드
+if [[ "$BUILD_TLS" == true ]]; then
+    print_info "TLS 테스트를 빌드합니다..."
+    
+    # OpenSSL 경로 설정
+    OPENSSL_PATH=$(brew --prefix openssl@3 2>/dev/null)
+    if [[ -z "$OPENSSL_PATH" ]]; then
+        OPENSSL_PATH="/usr/local/opt/openssl@3"
+    fi
+    
+    if [[ -d "$OPENSSL_PATH" ]]; then
+        print_info "OpenSSL 경로: $OPENSSL_PATH"
+        OPENSSL_FLAGS="-I$OPENSSL_PATH/include -L$OPENSSL_PATH/lib"
+    else
+        print_warning "OpenSSL 경로를 찾을 수 없습니다. 시스템 기본값을 사용합니다."
+        OPENSSL_FLAGS=""
+    fi
+    
+    # C 컴파일러 플래그 설정
+    C_COMPILE_FLAGS="-Wall -Wextra"
+    if [[ "$DEBUG_MODE" == true ]]; then
+        C_COMPILE_FLAGS="$C_COMPILE_FLAGS -g -O0"
+    else
+        C_COMPILE_FLAGS="$C_COMPILE_FLAGS -O2"
+    fi
+    
+    # TLS 클라이언트 빌드
+    if gcc $C_COMPILE_FLAGS $OPENSSL_FLAGS -o tls_client_test tls_client_test.c -lssl -lcrypto; then
+        print_success "TLS 클라이언트 빌드 완료: tls_client_test"
+    else
+        print_error "TLS 클라이언트 빌드 실패"
+        exit 1
+    fi
+    
+    # TLS 서버 빌드
+    if gcc $C_COMPILE_FLAGS $OPENSSL_FLAGS -o tls_server_test tls_server_test.c -lssl -lcrypto; then
+        print_success "TLS 서버 빌드 완료: tls_server_test"
+    else
+        print_error "TLS 서버 빌드 실패"
+        exit 1
+    fi
+    
+    if [[ "$RUN_AFTER_BUILD" == true ]]; then
+        print_info "TLS 테스트를 실행합니다..."
+        echo "----------------------------------------"
+        echo "TLS 클라이언트 테스트 (Google):"
+        ./tls_client_test www.google.com 443 /
+        echo ""
+        echo "TLS 클라이언트 테스트 (HTTPBin):"
+        ./tls_client_test httpbin.org 443 /get
+        echo "----------------------------------------"
+    fi
+fi
+
 print_success "빌드 완료!"
 echo ""
 print_info "사용 가능한 실행 파일:"
@@ -216,6 +278,12 @@ if [[ -f "advanced_curl_cpp" ]]; then
 fi
 if [[ -f "ipv4_ipv6_test" ]]; then
     echo "  ./ipv4_ipv6_test     - IPv4 vs IPv6 vs 기본 동작 테스트"
+fi
+if [[ -f "tls_client_test" ]]; then
+    echo "  ./tls_client_test    - OpenSSL TLS 클라이언트 테스트"
+fi
+if [[ -f "tls_server_test" ]]; then
+    echo "  ./tls_server_test    - OpenSSL TLS 서버 테스트"
 fi
 echo ""
 print_info "빌드 스크립트 사용법: ./build.sh --help" 
