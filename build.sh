@@ -247,11 +247,19 @@ if [[ "$BUILD_TLS" == true ]]; then
         exit 1
     fi
     
-    # TLS 서버 빌드
+    # TLS 서버 빌드 (메모리 기반 인증서)
     if gcc $C_COMPILE_FLAGS $OPENSSL_FLAGS -o tls_server_test tls_server_test.c -lssl -lcrypto; then
         print_success "TLS 서버 빌드 완료: tls_server_test"
     else
         print_error "TLS 서버 빌드 실패"
+        exit 1
+    fi
+    
+    # TLS 서버 빌드 (파일 기반 인증서)
+    if gcc $C_COMPILE_FLAGS $OPENSSL_FLAGS -o tls_server_file_test tls_server_file_test.c -lssl -lcrypto; then
+        print_success "TLS 서버 (파일 기반) 빌드 완료: tls_server_file_test"
+    else
+        print_error "TLS 서버 (파일 기반) 빌드 실패"
         exit 1
     fi
     
@@ -284,6 +292,9 @@ if [[ -f "tls_client_test" ]]; then
 fi
 if [[ -f "tls_server_test" ]]; then
     echo "  ./tls_server_test    - OpenSSL TLS 서버 테스트"
+fi
+if [[ -f "tls_server_file_test" ]]; then
+    echo "  ./tls_server_file_test - OpenSSL TLS 서버 (파일 기반) 테스트"
 fi
 echo ""
 print_info "빌드 스크립트 사용법: ./build.sh --help" 
